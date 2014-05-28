@@ -83,8 +83,8 @@ $form .= '</form>';
 				header( "Location: ". $urltp ) ;
 		 		exit();
 			}			
-			//return array('name' => $bank ['name'], 'description' => $bank ['description'], 'html' => $form);
-			return $form;
+			return array('name' => $bank ['name'], 'description' => $bank ['description'], 'html' => $form);
+			//return $form;
 		} catch ( Exception $e ) {
 			die ( $e->getMessage () );
 		}

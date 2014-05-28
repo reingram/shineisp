@@ -91,7 +91,7 @@ class Shineisp_Commons_Utilities {
 				return true;
 		
 			}else{
-				return "There is a database connection problem, please check the credencials ($dsn)";
+				return "There is a database connection problem, please check the credentials ($dsn)";
 			}
 		}catch (Exception $e){
 			return $e->getMessage();
@@ -231,13 +231,13 @@ class Shineisp_Commons_Utilities {
 	    }
 	 
 	    // Start the table
-	    $table = "<table id='$id'>\n";
+	    $table = "<table width='100%' id='$id'>\n";
 	 
 	    // The header
 	    $table .= "\t<tr>";
 	    // Take the keys from the first row as the headings
 	    foreach (array_keys($array[0]) as $heading) {
-	        $table .= '<th>' . $heading . '</th>';
+	        $table .= '<td>' . $heading . '</td>';
 	    }
 	    $table .= "</tr>\n";
 	 
@@ -308,7 +308,7 @@ class Shineisp_Commons_Utilities {
 	 * This function simply returns an array containing a list of a directory's contents.
 	 * @param unknown_type $directory
 	 */
-	public static function getDirectoryList ($directory)
+	public static function getDirectoryList ($directory, $setMaxDepth="-1")
 	{
 	
 		// create an array to hold directory list
@@ -318,6 +318,7 @@ class Shineisp_Commons_Utilities {
 			
 			// create a handler for the directory
 			$directory_iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
+			$directory_iterator->setMaxDepth($setMaxDepth);
 			foreach($directory_iterator as $filename => $path_object) {
 		
 				// if file isn't this directory or its parent, add it to the results
@@ -358,6 +359,79 @@ class Shineisp_Commons_Utilities {
 		return FALSE;
 	}
 	
+	/**
+	 * Indents a flat JSON string to make it more human-readable.
+	 *
+	 * @param string $json The original JSON string to process.
+	 *
+	 * @return string Indented version of the original JSON string.
+	 */
+	public static function jsonBeautifier($json) {
+	
+		$result      = '';
+		$pos         = 0;
+		$strLen      = strlen($json);
+		$indentStr   = '  ';
+		$newLine     = "\n";
+		$prevChar    = '';
+		$outOfQuotes = true;
+	
+		for ($i=0; $i<=$strLen; $i++) {
+	
+			// Grab the next character in the string.
+			$char = substr($json, $i, 1);
+	
+			// Are we inside a quoted string?
+			if ($char == '"' && $prevChar != '\\') {
+				$outOfQuotes = !$outOfQuotes;
+	
+				// If this character is the end of an element,
+				// output a new line and indent the next line.
+			} else if(($char == '}' || $char == ']') && $outOfQuotes) {
+				$result .= $newLine;
+				$pos --;
+				for ($j=0; $j<$pos; $j++) {
+					$result .= $indentStr;
+				}
+			}
+	
+			// Add the character to the result string.
+			$result .= $char;
+	
+			// If the last character was the beginning of an element,
+			// output a new line and indent the next line.
+			if (($char == ',' || $char == '{' || $char == '[') && $outOfQuotes) {
+				$result .= $newLine;
+				if ($char == '{' || $char == '[') {
+					$pos ++;
+				}
+	
+				for ($j = 0; $j < $pos; $j++) {
+					$result .= $indentStr;
+				}
+			}
+	
+			$prevChar = $char;
+		}
+	
+		return $result;
+	}
+	
+	
+	/**
+	 * Get the list of months localizated
+	 */
+	public static function getMonths(){
+		$months = array();
+		$translator = Shineisp_Registry::get('Zend_Translate');
+		
+		for( $i = 1; $i <= 12; $i++ ) {
+			$months[ $i-1 ] = $translator->translate(strftime( '%B', mktime( 0, 0, 0, $i, 1 ) ));
+		}
+		
+		return $months;
+	}
+	
 	public static function isAjax() {
 		return (isset ( $_SERVER ['HTTP_X_REQUESTED_WITH'] ) && ($_SERVER ['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest'));
 	}
@@ -376,30 +450,11 @@ class Shineisp_Commons_Utilities {
 	 * with single character separator between.
 	 */
 	public static function is_valid_date($value, $format = 'dd.mm.yyyy'){
-		if(strlen($value) >= 6 && strlen($format) == 10){
-			 
-			// find separator. Remove all other characters from $format
-			$separator_only = str_replace(array('m','d','y'),'', $format);
-			$separator = $separator_only[0]; // separator is first character
-			 
-			if($separator && strlen($separator_only) == 2){
-				// make regex
-				$regexp = str_replace('mm', '(0?[1-9]|1[0-2])', $format);
-				$regexp = str_replace('dd', '(0?[1-9]|[1-2][0-9]|3[0-1])', $regexp);
-				$regexp = str_replace('yyyy', '(19|20)?[0-9][0-9]', $regexp);
-				$regexp = str_replace($separator, "\\" . $separator, $regexp);
-				if($regexp != $value && preg_match('/'.$regexp.'\z/', $value)){
-	
-					// check date
-					$arr=explode($separator,$value);
-					$day=$arr[0];
-					$month=$arr[1];
-					$year=$arr[2];
-					if(@checkdate($month, $day, $year))
-						return true;
-				}
-			}
-		}
+	    $locale = Shineisp_Registry::get('Zend_Locale');
+	    
+	    if (Zend_Date::isDate($value, $locale)) {
+	        return true;
+	    }
 		return false;
 	}
 	
@@ -706,7 +761,7 @@ class Shineisp_Commons_Utilities {
 	 * SendEmail
      * Smtp Configuration.
      * If you would like to use the smtp authentication, you have to add 
-     * the paramenters in the Setting Module of the Control Panel
+     * the parameters in the Setting Module of the Control Panel
      * 
 	 * @param string $from
 	 * @param string or array $to
@@ -892,12 +947,11 @@ class Shineisp_Commons_Utilities {
 		}
 
 		$EmailTemplate = EmailsTemplates::findByCode($template, null, false, $language_id);
-		$EmailTemplate = null;
 		
 		// Template missing from DB. Let's add it.
 		if ( !is_object($EmailTemplate) || !isset($EmailTemplate->EmailsTemplatesData) || !isset($EmailTemplate->EmailsTemplatesData->{0}) || !isset($EmailTemplate->EmailsTemplatesData->{0}->subject) ) {
 			$filename = PUBLIC_PATH . "/languages/emails/".$locale."/".$template.".htm";
-			
+
 			// Check if the file exists
 			if (! file_exists ( $filename )) {
 				$filename = PUBLIC_PATH . "/languages/emails/".$fallbackLocale."/".$template.".htm";
@@ -1013,8 +1067,10 @@ class Shineisp_Commons_Utilities {
 	 * @param array|string $replyto
 	 * @param array $ISP
 	 * @param integer $language_id
+	 * @param string $bcc
 	 */
-	public static function sendEmailTemplate($recipient = null, $template = '', $placeholders = array(), $inreplyto = null, $attachments = null, $replyto = null, $ISP = null, $language_id = null) {
+	public static function sendEmailTemplate($recipient = null, $template = '', $placeholders = array(), $inreplyto = null, 
+			$attachments = null, $replyto = null, $ISP = null, $language_id = null, $bcc = null) {
 		
 		// Get email template
 		$arrTemplate = self::getEmailTemplate($template, $language_id);
@@ -1040,8 +1096,7 @@ class Shineisp_Commons_Utilities {
 		
 		// Creates a flat array
 		$placeholders = self::flatplaceholders($placeholders);
-// 		Zend_Debug::dump($placeholders);
-// 		die;
+
 		// Remove unneeded parameters
 		unset($placeholders['active']);
 		unset($placeholders['isppanel']);
@@ -1050,7 +1105,6 @@ class Shineisp_Commons_Utilities {
 		
 		foreach ( $placeholders as $placeholder => $emailcontent ) {
 			foreach ( $arrTemplate as $k => $v ) {
-				
 				// $placeholders contains the order header information
 				if(is_string($emailcontent)){
 					$arrTemplate[$k] = str_replace('['.$placeholder.']', $emailcontent, $v);
@@ -1071,6 +1125,11 @@ class Shineisp_Commons_Utilities {
 			}
 		}
 		
+		// add hidden email address
+		if(!empty($bcc)){
+			$arrBCC[] = $bcc;
+		}
+		
 		// Get always-bcc from custom settings
 		$always_send_to = Settings::findbyParam('always_send_to');
 		$always_send_to = trim($always_send_to);
@@ -1085,7 +1144,6 @@ class Shineisp_Commons_Utilities {
 			}	
 		}
 		
-		//$arrBCC[] = $arrTemplate['fromemail']; // always BCC for sender
 		$arrBCC = array_unique($arrBCC); // Remove duplicate bcc addresses
 		
 		if ( isset($arrTemplate['cc']) && !empty($arrTemplate['cc']) ) {
@@ -1099,10 +1157,10 @@ class Shineisp_Commons_Utilities {
 		// null recipient, send only to ISP
 		$recipient = ($recipient == null) ? $ISP['email'] : $recipient;
 		
-// 		Zend_Debug::dump($language_id);
 // 		Zend_Debug::dump($recipient);
 // 		Zend_Debug::dump($replyto);
 // 		Zend_Debug::dump($arrFrom);
+// 		Zend_Debug::dump($arrTemplate);
 // 		Zend_Debug::dump($arrBCC);
 // 		Zend_Debug::dump($arrTemplate['template']);
 // 		echo $arrTemplate['template'];
@@ -1179,7 +1237,7 @@ class Shineisp_Commons_Utilities {
 		$date = new Zend_Date($dbindata, "yyyy-MM-dd HH:mm:ss", $locale);
 
 		// override the preferences
-		$dateformat = Settings::findbyParam('dateformat');
+		$dateformat = Settings::getZendDateFormat();
 		
 		if(!empty($dateformat)){
 			$dateformat .= ($showTime) ? " HH:mm:ss" : null;
@@ -1201,7 +1259,8 @@ class Shineisp_Commons_Utilities {
 		if (empty ( $dboutdata ))
 			return null;
 		
-		$date = new Zend_Date($dboutdata);
+		$locale = Shineisp_Registry::get('Zend_Locale');
+		$date = new Zend_Date($dboutdata, Settings::getZendDateFormat(), $locale);
 		
 		return $date->toString('yyyy-MM-dd HH:mm:ss');
 	}

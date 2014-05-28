@@ -12,7 +12,7 @@ Doctrine_Manager::getInstance()->bindComponent('Customers', 'doctrine');
  * @property string $company
  * @property string $firstname
  * @property string $lastname
- * @property string $sex
+ * @property string $gender
  * @property string $email
  * @property string $password
  * @property string $resetpwd_key
@@ -51,6 +51,7 @@ Doctrine_Manager::getInstance()->bindComponent('Customers', 'doctrine');
  * @property CustomAttributesValues $CustomAttributesValues
  * @property Doctrine_Collection $Addresses
  * @property Doctrine_Collection $Contacts
+ * @property Doctrine_Collection $DomainsProfiles
  * @property Doctrine_Collection $CustomersDomainsRegistrars
  * @property Doctrine_Collection $Domains
  * @property Doctrine_Collection $DomainsBulk
@@ -103,7 +104,7 @@ abstract class BaseCustomers extends Doctrine_Record
              'notnull' => false,
              'length' => '100',
              ));
-        $this->hasColumn('sex', 'string', 1, array(
+        $this->hasColumn('gender', 'string', 1, array(
              'type' => 'string',
              'notnull' => false,
              'length' => '1',
@@ -133,7 +134,7 @@ abstract class BaseCustomers extends Doctrine_Record
              ));
         $this->hasColumn('force_password_change', 'tinyint', 1, array(
              'type' => 'tinyint',
-             'notnull' => true,
+             'notnull' => false,
              'fixed' => 0,
              'length' => '1',
              ));
@@ -290,6 +291,10 @@ abstract class BaseCustomers extends Doctrine_Record
              'foreign' => 'customer_id'));
 
         $this->hasMany('Contacts', array(
+             'local' => 'customer_id',
+             'foreign' => 'customer_id'));
+
+        $this->hasMany('DomainsProfiles', array(
              'local' => 'customer_id',
              'foreign' => 'customer_id'));
 

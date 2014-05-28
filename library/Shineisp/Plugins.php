@@ -27,7 +27,7 @@ class Shineisp_Plugins {
 			$modules = $mainconfig->xpath("/shineisp/modules");
 		}
 		
-		$path = PROJECT_PATH . "/library/Shineisp/Plugins/";  // << The last slash is very important in the plugin path
+		$path = PROJECT_PATH . "/library/Shineisp/Plugins" . DIRECTORY_SEPARATOR;  // << The last slash is very important in the plugin path
 		
 		// Read all the directory recursivelly and get all the files and folders
 		$iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path));
@@ -47,7 +47,7 @@ class Shineisp_Plugins {
 				$PluginBasePath = str_replace($path, "", $info['dirname']);
 				
 				// Convert the result as array
-				$PluginBasePathArray = explode("/", $PluginBasePath);
+				$PluginBasePathArray = explode(DIRECTORY_SEPARATOR, $PluginBasePath);
         		
         		// Create the name of the Plugin class
 				$pluginName     = 'Shineisp_Plugins_'.implode("_", $PluginBasePathArray).'_Main';
@@ -112,14 +112,18 @@ class Shineisp_Plugins {
 							
 							if(!empty($config->settings) && $config->settings->children()){
 								foreach ($config->settings->children() as $node) {
+								    $configclass = array();
 									$arr   = $node->attributes();
 									$var   = strtolower($config['var']) . "_" . (string) $arr['var'];
 									$label = (string) $arr['label'];
 									$type  = (string) $arr['type'];
 									$description = (string) $arr['description'];
-								
+									if((string) $arr['configclass']){
+									    $configclass = json_decode((string) $arr['configclass'], true);
+									}
+									
 									if (!empty($var) && !empty($label) && !empty($type)) {
-										SettingsParameters::addParam($label, $description, $var, $type, 'admin', 1, $group_id);
+										SettingsParameters::addParam($label, $description, $var, $type, 'admin', 1, $group_id, $configclass);
 									}
 								}
 								if(!empty($config->customfields)){

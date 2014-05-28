@@ -9,7 +9,7 @@
 	* @version 1.1
 */
 
-class System_CronController extends Zend_Controller_Action {
+class System_CronController extends Shineisp_Controller_Default {
 
 	public function preDispatch() {
         $this->_helper->layout()->disableLayout();
@@ -34,7 +34,8 @@ class System_CronController extends Zend_Controller_Action {
 	    $result = AdminUser::fastlogin($email, $password, false);
 	   
 	    if(Zend_Auth_Result::SUCCESS == $result->getCode()){
-	    
+	    	$identity = $result->getIdentity();
+	    	
             // Get the cron default configuration
             $xmlobject = $resources->xpath ( "cron/execute" ) ;
             if (count ( $xmlobject )) {
@@ -49,7 +50,7 @@ class System_CronController extends Zend_Controller_Action {
                         if(($class == $class_called) && ($method == $method_called)){
                        
                             $this->execScript($class, $method, $params);
-                            Shineisp_Commons_Utilities::log("Manual Start: $log by " . $result['lastname'], 'cron.log');
+                            Shineisp_Commons_Utilities::log("Manual Start: $log by " . $identity['lastname'], 'cron.log');
                             
                         }
                     }

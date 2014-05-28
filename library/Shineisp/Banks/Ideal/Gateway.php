@@ -33,15 +33,16 @@ class Shineisp_Banks_Ideal_Gateway extends Shineisp_Banks_Abstract implements Sh
 		if ($order) {
 		
 		$form = '';
+		$custom = self::getOrderID ();
+		
 # Targetpay parameters	
 		require_once('func.php');
-		$item_name = $translator->translate ( "Order No." ) . " " . self::getOrderID() . " - " . date ( 'Y' );	
-		$rtlo = 110519;//accountnumber!!
+		$item_name = $translator->translate ( "Order No." ) . " " . $custom . " - " . date ( 'Y' );	
+		$rtlo = $bank ['account'];// account number
 		$description = substr(trim($item_name),0,32);// max 32 char
 		$amount = $order ['grandtotal']*100;
-		$returnurl = 'http://'.self::getUrlOk();
-		//$returnurl = 'http://localhost.domeinnamme.com/cms/2.php';
-		// evt. aan $returnurl nog bijv. $amount en $description toevoegen voor evt. verdere verwerking!!  
+		$returnurl = 'http://'.self::getUrlOk();// http or https is necessary!
+		// check to see if it's possible to add e.g. $amount and order-id to $returnurl in a 'custom' parameter 
 		//$reporturl = 'http://'.self::getUrlCallback();		
 # /Targetpay parameters		
 		try {
@@ -52,15 +53,15 @@ class Shineisp_Banks_Ideal_Gateway extends Shineisp_Banks_Abstract implements Sh
 			}			
 			
 			$form .= '</td><td align="left">';	
-			$form .= '<p>Betaal met iDeal via uw eigen bank<br />';
+			$form .= '<p>Betaal met iDeal via uw eigen bank<br />';//Translation
 			$form .= '<form name="bankselect">';
-			$form .= '<span style="font-size:14px; font-weight: bold;">Kies eerst uw bank: </span>';
+			$form .= '<span style="font-size:14px; font-weight: bold;">Kies eerst uw bank: </span>';//Translation
 			$form .= '<select name=bank onChange="document.bankselect.submit();">';
-			$form .= '<script src="https://www.targetpay.com/ideal/issuers-nl.js"></script>';
+			$form .= '<script src="https://www.targetpay.com/ideal/issuers-nl.js"></script>';// https://www.targetpay.com/ideal/issuers-en.js for english
 			$form .= '</select>';
 $form .= '</form>';
-			$form .= '</p>NB: Onze iDeal betalingen worden verwerkt door <a href="https://www.targetpay.com/info/secure" target="_blank">Targetpay</a>. Dit wordt ook op uw bankafschrift vermeld.</td></tr></table>';
-			$form .= 'Onderstaande banken bieden de mogelijkheid tot iDeal betalingen';		
+			$form .= '</p>NB: Onze iDeal betalingen worden verwerkt door <a href="https://www.targetpay.com/info/secure" target="_blank">Targetpay</a>. Dit wordt ook op uw bankafschrift vermeld.</td></tr></table>';// Translation
+			$form .= 'Onderstaande banken bieden de mogelijkheid tot iDeal betalingen';// Translation		
 			$form .= '<table width="100%"><tr>';
 			$form .= '<td><img src="/skins/default/base/images/banks/logo/banklogo_abnamro.png"></td>';
 			$form .= '<td><img src="/skins/default/base/images/banks/logo/banklogo_rabo.png"></td>';
@@ -100,32 +101,27 @@ $form .= '</form>';
 		$bank = self::getModule ();
 		$bankid = $bank ['bank_id'];
 		require_once('func.php');
-		// De consument komt vanaf de bank terug op de returnurl.
-		// Hier controleren we de transactiestatus
-		//if( isset($_GET['ec']) && isset($_GET['trxid']))
+		$rtlo = $bank ['account'];//accountnumber
+		// Customer returns from bank to returnurl.
+		// Check transaction status
+		//NB $response['custom'] (== order id) is tested in function responseAction in OrdersController class
 		if ((! empty ( $response ['trxid'])) && (! empty( $response['ec'])))
 		{
-			// 000000 OK betekent succesvol. We kunnen het product leveren
+			// 000000 OK is success. Order has been paid and can be handled
 			if(($status = CheckReturnurl( $rtlo, $response['trxid'] ))=="000000 OK" )
 			{
-				// Voeg hier programmacode toe om de orderstatus bij te werken.
+				//Update order status
 				
 				$payment = Payments::addpayment ( $orderid, $response ['trx_id'], $bankid, 0, $amount );
 				Orders::set_status ( $orderid, Statuses::id("paid", "orders") ); // Paid
 				OrdersItems::set_statuses ( $orderid, Statuses::id("paid", "orders") ); // Paid
 												
 				return $orderid;
-				//die( "Status was Successful...<br>Thank you for your order" );
+				//die( "Status was Successful...<br />Thank you for your order" );
 			}
-		// Bij alle andere statussen producten niet leveren
-		// Voeg hier zelf programmacode toe om de status bij te werken
+		// if no succes: error in payment
+		// ToDo: add code to handle errors
 		else die( $status );
-		}
-		
-		// De reporturl wordt vanaf de Targetpay server aangeroepen
-		if ( isset($_POST['rtlo'])&&isset($_POST['trxid'])&& isset($_POST['status'])) 
-		{
-		HandleReporturl($_POST['rtlo'], $_POST['trxid'], $_POST['status'] );
 		}
 
 		/*
@@ -150,7 +146,7 @@ $form .= '</form>';
 	*/
 	}
 
-	/**
+	/**ToDo
 	 * CallBack
 	 * This function is called by the bank server in order to confirm the transaction previously executed
 	 * @param $response from the Gateway Server
@@ -158,42 +154,16 @@ $form .= '</form>';
 	 */
 	public function CallBack($response) {
 		Shineisp_Commons_Utilities::logs ( "Start callback", "ideal.log" );
-	// De consument komt vanaf de bank terug op de returnurl.
 		$bank = self::getModule ();
-		//$bankid = $bank ['bank_id'];
+		$bankid = $bank ['bank_id'];
 		require_once('func.php');
-		$rtlo = 110519;
-		echo '<pre>';
-		print_r($response);
-		echo '</pre>';
-		//http://localhost.domeinnamme.com/common/callback/gateway/7b4c0cb89796ad9a06d2277bae78a4b9?trxid=0030000824438908&ec=215316177138874
-		// Hier controleren we de transactiestatus
-		
-		
-		//if( isset($_GET['ec']) && isset($_GET['trxid'])){
-		// 000000 OK betekent succesvol. We kunnen het product leveren
-		$inttrxid = $response['trxid'];
-		$intec = $response['ec'];
-		echo $inttrxid;
-		if(isset($intec) && isset($inttrxid ))
+		$rtlo = $bank ['account'];//accountnumber
+		if ( isset($_POST['rtlo'])&&isset($_POST['trxid'])&& isset($_POST['status'])) 
 		{
-		//if(($status = CheckReturnurl( $rtlo, $_GET['trxid'] ))=="000000 OK" ){
-		if(($status = CheckReturnurl( $rtlo, $inttrxid ))=="000000 OK" )
-		{		
-		echo '// Voeg hier programmacode toe om de orderstatus bij te werken.';
-		Shineisp_Commons_Utilities::logs ( "Callback parameters: ".$inttrxid.": ".$status, "ideal.log" );
-		
-		die( "Status was Successful...<br>Thank you for your order" );
+			HandleReporturl($_POST['rtlo'], $_POST['trxid'], $_POST['status'] );
 		}
-		
-		else 
-			{echo 'Product niet leveren';
-			Shineisp_Commons_Utilities::logs ( "Callback parameters: ".$inttrxid.": ".$status, "ideal.log" );
-			// Bij alle andere statussen producten niet leveren
-		// Voeg hier zelf programmacode toe om de status bij te werken
-				die( $status );
 			
-			}
-		}
+			
+		
 	}
 }

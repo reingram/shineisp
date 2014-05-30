@@ -201,7 +201,7 @@ class Settings extends BaseSettings {
 	public static function getZendDateFormat() {
 	    $value = self::findbyParam('dateformat');
         if(!empty($value)){
-            $value = explode("|", $value);
+            $value = explode("/", $value);
             return $value[1];
         }
         
@@ -215,7 +215,7 @@ class Settings extends BaseSettings {
 	public static function getJsDateFormat() {
 	    $value = self::findbyParam('dateformat');
         if(!empty($value)){
-            $value = explode("|", $value);
+            $value = explode("/", $value);
             return $value[2];
         }
         

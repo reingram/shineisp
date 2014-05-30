@@ -42,7 +42,11 @@ class Shineisp_Banks_Ideal_Gateway extends Shineisp_Banks_Abstract implements Sh
 		$description = substr(trim($item_name),0,32);// max 32 char
 		$amount = $order ['grandtotal']*100;
 		$returnurl = 'http://'.self::getUrlOk();// http or https is necessary!
-		// check to see if it's possible to add e.g. $amount and order-id to $returnurl in a 'custom' parameter 
+		//par1=order id, par2=amount, par3=customer_id
+		$token = 'par1-'.$custom.',par2-'.$amount.',par3-'.$order['customer_id'];
+		//it might be a good idea to code $token to avoid fooling around with the amount or other parameters.
+		$returnurl = $returnurl.'?token='.$token;
+		
 		//$reporturl = 'http://'.self::getUrlCallback();		
 # /Targetpay parameters		
 		try {
@@ -76,6 +80,7 @@ $form .= '</form>';
 			$form .= '<td><img src="/skins/default/base/images/banks/logo/banklogo_triodos.png"></td> ';
 			$form .= '<td></td></tr> ';
 			$form .= '</table>';
+			
 			if (isset($_GET['bank'] ))
 			{
 				$urltp = StartTransaction($rtlo, $_GET['bank'], $description,$amount, $returnurl, $reporturl);
@@ -104,24 +109,33 @@ $form .= '</form>';
 		$rtlo = $bank ['account'];//accountnumber
 		// Customer returns from bank to returnurl.
 		// Check transaction status
-		//NB $response['custom'] (== order id) is tested in function responseAction in OrdersController class
 		if ((! empty ( $response ['trxid'])) && (! empty( $response['ec'])))
 		{
+			$orderid = $response['custom'];
+
 			// 000000 OK is success. Order has been paid and can be handled
 			if(($status = CheckReturnurl( $rtlo, $response['trxid'] ))=="000000 OK" )
 			{
 				//Update order status
-				
-				$payment = Payments::addpayment ( $orderid, $response ['trx_id'], $bankid, 0, $amount );
+				// Replacing the comma with the dot in the amount value. 
+				$amount = str_replace ( ",", ".", $response ['amount'] );
+				$payment = Payments::addpayment ( $orderid, $response ['trxid'], $bankid, 0, $amount );
 				Orders::set_status ( $orderid, Statuses::id("paid", "orders") ); // Paid
-				OrdersItems::set_statuses ( $orderid, Statuses::id("paid", "orders") ); // Paid
-												
+				OrdersItems::set_status ( $orderid, Statuses::id("paid", "orders") ); // Paid
+				//below just temporarily, must go to callback function
+				Orders::Complete ( $orderid, true ); // Complete the order information and it executes all the tasks to do
+				Payments::confirm ( $orderid, true ); // Set the payment confirm 
 				return $orderid;
-				//die( "Status was Successful...<br />Thank you for your order" );
+				
 			}
 		// if no succes: error in payment
 		// ToDo: add code to handle errors
-		else die( $status );
+		
+		else
+			{
+			
+			die( $status );
+			}
 		}
 
 		/*

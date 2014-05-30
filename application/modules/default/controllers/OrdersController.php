@@ -498,7 +498,22 @@ class OrdersController extends Shineisp_Controller_Default {
 	public function responseAction() {
 		$request = $this->getRequest ();
 		$response = $request->getParams ();
-		
+		# changed for iDeal payments
+		//check if it's most likely an iDeal payment
+		if ((isset ( $response ['trxid'])) && (isset( $response['ec'])) && (isset($response['token'])))
+		{
+		//unraffle the token $token = 'par1-'.$custom.',par2-'.$amount;
+		//when the token is coded, first decode it
+		$token = $response['token'];
+		$unraffle = explode (",", $token);
+		$par1 = explode("-",$unraffle['0']);
+		$response['custom'] = $par1['1'];
+		$par2 = explode("-",$unraffle['1']);
+		$response['amount'] = $par2['1']/100;
+		$par3 = explode("-",$unraffle['2']);
+		$response['customer_id'] = $par3['1'];
+		}
+		# /changed for iDeal payments
 		if (! empty ( $response ['custom'] ) && is_numeric ( trim ( $response ['custom'] ) )) {
 			
 			$isp = Shineisp_Registry::get('ISP');
